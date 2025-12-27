@@ -1,4 +1,6 @@
 import { useState, useEffect } from 'react'
+import { auth } from './config/firebase'
+import { MessageProvider } from './context/MessageContext'
 import './App.css'
 import LoginView from './views/LoginView.jsx'
 import HomeView from './views/HomeView.jsx'
@@ -11,6 +13,8 @@ import DoctorView from './views/DoctorView.jsx'
 import StoresView from './views/StoresView.jsx'
 import RecordsView from './views/RecordsView.jsx'
 import SignupView from './views/SignupView.jsx'
+import ChatView from './views/ChatView.jsx'
+import ProviderPortalView from './views/ProviderPortalView.jsx'
 
 function ViewSection({ id, name, currentView, children }) {
   const className =
@@ -49,6 +53,50 @@ function App() {
     return () => clearTimeout(timeoutId)
   }, [animationStep, showIntro])
 
+  // Bootstrap login state from Firebase session or localStorage
+  useEffect(() => {
+    console.log('[App Bootstrap] Checking auth state...')
+    const existing = localStorage.getItem('user')
+    if (existing) {
+      console.log('[App Bootstrap] Found existing user in localStorage')
+      setIsLoggedIn(true)
+      return
+    }
+
+    // Listen for Firebase auth state changes
+    console.log('[App Bootstrap] Setting up Firebase auth listener')
+    const unsubscribe = auth.onAuthStateChanged(async (user) => {
+      console.log('[App Bootstrap] Auth state changed:', user ? `User: ${user.email}` : 'No user')
+      if (user) {
+        try {
+          console.log('[App Bootstrap] Getting ID token...')
+          const idToken = await user.getIdToken()
+          console.log('[App Bootstrap] Calling backend /api/auth/login/firebase')
+          const response = await fetch('http://localhost:5000/api/auth/login/firebase', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ idToken })
+          })
+          const data = await response.json()
+          console.log('[App Bootstrap] Backend response:', data)
+          if (response.ok && data.success) {
+            console.log('[App Bootstrap] Storing user in localStorage')
+            localStorage.setItem('user', JSON.stringify(data.user))
+            localStorage.setItem('userType', data.userType)
+            localStorage.setItem('firebaseUid', data.firebaseUid)
+            setIsLoggedIn(true)
+          } else {
+            console.error('[App Bootstrap] Backend login failed:', data)
+          }
+        } catch (e) {
+          console.warn('Login bootstrap failed:', e)
+        }
+      }
+    })
+
+    return () => unsubscribe()
+  }, [])
+
   const desktopNavClass = (name) =>
     `nav-link${view === name ? ' active' : ''}`
 
@@ -71,6 +119,7 @@ function App() {
 
   return (
     <>
+      <MessageProvider>
       {showIntro && (
         <div className={`intro-screen ${animationStep >= 3 ? 'fade-out' : ''}`}>
           <div className="intro-content">
@@ -89,9 +138,12 @@ function App() {
           <div className="header-logo-section">
             <div className="logo">
               <img 
-                src="/assests/docai-logo.png" 
-                alt="DocAI Logo" 
+                src="/docai-logo.svg" 
+                alt="DOC-AI Logo" 
                 className="logo-image"
+                loading="eager"
+                fetchpriority="high"
+                onError={(e) => { e.currentTarget.src = '/docai-logo-fallback.svg' }}
               />
               <span className="logo-text-animated">DocAI</span>
             </div>
@@ -107,6 +159,9 @@ function App() {
               </a>
               <a className={desktopNavClass('records')} onClick={() => goTo('records')}>
                 Records
+              </a>
+              <a className={desktopNavClass('chat')} onClick={() => goTo('chat')}>
+                Messages
               </a>
               <a
                 className={desktopNavClass('provider-portal')}
@@ -208,6 +263,14 @@ function App() {
         </ViewSection>
 
         <ViewSection
+          id="view-chat"
+          name="chat"
+          currentView={view}
+        >
+          <ChatView goTo={goTo} />
+        </ViewSection>
+
+        <ViewSection
           id="view-signup"
           name="signup"
           currentView={view}
@@ -299,8 +362,28 @@ function App() {
           </svg>
           <span>Records</span>
         </a>
+        <a
+          className={mobileNavClass('chat')}
+          onClick={() => goTo('chat')}
+        >
+          <svg
+            width="24"
+            height="24"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
+            <polyline points="22,6 12,13 2,6"></polyline>
+          </svg>
+          <span>Messages</span>
+        </a>
         </nav>
       )}
+      </MessageProvider>
     </>
   )
 }

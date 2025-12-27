@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useContext, useState } from "react";
+import { MessageContext } from "../context/MessageContext";
 import "./DoctorPortal.css";
 
 export default function DoctorPortal() {
@@ -255,6 +256,20 @@ function AppointmentsView({ switchView }) {
 }
 
 function MessagesView({ selectedMessage, setSelectedMessage }) {
+  const { getDoctorConversations, sendDoctorMessage } = useContext(MessageContext)
+  const conversations = getDoctorConversations()
+  const [selectedConv, setSelectedConv] = useState(0)
+  const [messageInput, setMessageInput] = useState('')
+
+  const currentConversation = conversations[selectedConv]
+
+  const handleSendMessage = () => {
+    if (messageInput.trim()) {
+      sendDoctorMessage(selectedConv, messageInput)
+      setMessageInput('')
+    }
+  }
+
   return (
     <section className="messages-view">
       <h1 className="page-title">Messages</h1>
@@ -263,46 +278,48 @@ function MessagesView({ selectedMessage, setSelectedMessage }) {
           <div className="msg-search">
             <input type="text" placeholder="Search messages..." />
           </div>
-          <div 
-            className={`msg-preview ${selectedMessage === 0 ? 'active' : ''}`}
-            onClick={() => setSelectedMessage(0)}
+          {conversations.map((conv, idx) => (
+            <div 
+              key={conv.id}
+              className={`msg-preview ${selectedConv === idx ? 'active' : ''}`}
+              onClick={() => setSelectedConv(idx)}
           >
-            <div className="msg-preview-header">
-              <div className="msg-preview-name">Simulated Patient</div>
-              <div className="msg-preview-time">9:45 AM</div>
+              <div className="msg-preview-header">
+                <div className="msg-preview-name">{conv.patientName}</div>
+                <div className="msg-preview-time">{conv.timestamp}</div>
+              </div>
+              <div className="msg-preview-text">{conv.lastMessage.substring(0, 50)}...</div>
             </div>
-            <div className="msg-preview-text">Re: Question about new medication side effect...</div>
-          </div>
-          <div 
-            className={`msg-preview ${selectedMessage === 1 ? 'active' : ''}`}
-            onClick={() => setSelectedMessage(1)}
-          >
-            <div className="msg-preview-header">
-              <div className="msg-preview-name">Mark Ruffalo</div>
-              <div className="msg-preview-time">Yesterday</div>
-            </div>
-            <div className="msg-preview-text">Thanks for the refill dr chen.</div>
-          </div>
+            ))}
         </div>
 
         <div className="msg-content">
           <div className="msg-header">
-            <div className="msg-header-title">Simulated Patient</div>
-            <div className="msg-header-mrn">MRN #882910</div>
+            <div className="msg-header-title">{currentConversation?.patientName}</div>
+            <div className="msg-header-mrn">Patient</div>
           </div>
           <div className="msg-body">
-            <div className="msg-bubble msg-in">
-              Hello Dr. Chen, I started the new medication yesterday but I'm feeling a bit dizzy this morning. Is this normal?
-              <div className="msg-time">9:45 AM</div>
-            </div>
-            <div className="msg-bubble msg-out">
-              Hi there. Mild dizziness can be a common side effect when starting. Please monitor your blood pressure if possible and let me know if it gets worse or persists beyond a few days. We can adjust if needed.
-              <div className="msg-time">10:05 AM</div>
-            </div>
+            {currentConversation?.messages.map((msg) => (
+              <div key={msg.id} className={`msg-bubble msg-${msg.sender === 'doctor' ? 'out' : 'in'}`}>
+                {msg.text}
+                <div className="msg-time">{msg.timestamp}</div>
+              </div>
+            ))}
           </div>
           <div className="msg-input-area">
-            <input type="text" placeholder="Type a reply..." />
-            <button className="btn btn-primary">Send</button>
+            <input 
+              type="text" 
+              placeholder="Type a reply..." 
+              value={messageInput}
+              onChange={(e) => setMessageInput(e.target.value)}
+              onKeyPress={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault()
+                  handleSendMessage()
+                }
+              }}
+            />
+            <button className="btn btn-primary" onClick={handleSendMessage}>Send</button>
           </div>
         </div>
       </div>

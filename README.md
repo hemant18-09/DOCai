@@ -86,13 +86,47 @@ This ensures:
 Clear separation of concerns
 Safe AI usage
 Auditable workflows
-🧪 Local Development (High-Level)
-Each service can be run independently:
+🧪 Local Development
+Each service can be run independently.
 
-Backend: Node.js + Express
-AI Service: FastAPI (Python)
-Frontend: React
-Detailed run instructions will be added as modules are implemented.
+Backend (FastAPI, Python):
+
+```powershell
+cd c:\hackooo\DOC-AI-main\backend
+# Use Python 3.11 or 3.12 (recommended) to avoid building pydantic-core from source
+py -3.12 -m venv .venv
+.venv\Scripts\Activate.ps1
+python -m pip install --upgrade pip
+pip install -r requirements.txt
+# Point to your Firebase service account JSON (do not commit it)
+$env:GOOGLE_APPLICATION_CREDENTIALS = "c:\Users\heman\Downloads\doc-ai-c866d-firebase-adminsdk-fbsvc-b800d676ab.json"
+python main.py
+```
+
+If credentials are valid, logs show: "✓ Firebase Firestore connected successfully".
+
+AI Service (FastAPI):
+
+```powershell
+cd c:\hackooo\DOC-AI-main\backend\ai-service\app
+python -m venv .venv
+.venv\Scripts\Activate.ps1
+pip install -r ..\..\requirements.txt
+python main.py
+```
+
+Frontend (React):
+
+```powershell
+cd c:\hackooo\DOC-AI-main\frontend
+npm install
+npm run dev
+```
+
+⚠️ Python Version Note
+
+- Python 3.14 can force `pydantic-core` to build from source and requires Rust/Cargo. Use Python 3.11/3.12 for smooth installs.
+- Install Python 3.12 from python.org and ensure it’s on PATH, then create the venv with `py -3.12 -m venv .venv`.
 
 🚦 Contribution Rules (Buildathon)
 Do not move AI logic into backend

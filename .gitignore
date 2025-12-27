@@ -1,4 +1,53 @@
-# Logs
+# Node.js
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+frontend/.eslintcache
+frontend/.vercel/
+
+# Python
+backend/.venv/
+**/__pycache__/
+*.pyc
+*.pyo
+
+# Env & secrets
+frontend/.env*
+backend/config/serviceAccountKey.json
+backend/config/serviceAccountKey.*.json
+
+# Logs & misc
+*.log
+.DS_Store
+Thumbs.db
+
+# Build outputs
+backend/.pytest_cache/
+backend/.coverage
+coverage/
+# Python venvs
+.venv/
+.venv*/
+
+# Node
+node_modules/
+
+# Env files
+.env
+.env.*
+
+# Python cache
+__pycache__/
+*.pyc
+
+# Firebase credentials (do not commit secrets)
+backend/config/serviceAccountKey.json
+**/serviceAccountKey.json
+**/firebase-service-account*.json
+
+# OS files
+.DS_Store
+Thumbs.db# Logs
 logs
 *.log
 npm-debug.log*

@@ -1,3 +1,73 @@
+/**
+ * Signals Utility - Fetch symptom and context signals from Firestore
+ */
+
+const API_BASE = 'http://localhost:5000/api'
+
+export async function getSignals() {
+  try {
+    const response = await fetch(`${API_BASE}/signals/`)
+    if (!response.ok) throw new Error('Failed to fetch signals')
+    const data = await response.json()
+    return data.data || {}
+  } catch (error) {
+    console.error('Error fetching signals:', error)
+    return { symptomSignals: {}, contextSignals: {} }
+  }
+}
+
+export async function getSymptomCategory(category) {
+  try {
+    const response = await fetch(`${API_BASE}/signals/symptom/${category}`)
+    if (!response.ok) throw new Error(`Failed to fetch ${category} symptoms`)
+    const data = await response.json()
+    return data.symptoms || []
+  } catch (error) {
+    console.error(`Error fetching ${category} symptoms:`, error)
+    return []
+  }
+}
+
+export async function getContextCategory(category) {
+  try {
+    const response = await fetch(`${API_BASE}/signals/context/${category}`)
+    if (!response.ok) throw new Error(`Failed to fetch ${category} contexts`)
+    const data = await response.json()
+    return data.contexts || []
+  } catch (error) {
+    console.error(`Error fetching ${category} contexts:`, error)
+    return []
+  }
+}
+
+export async function initializeSignals() {
+  try {
+    const response = await fetch(`${API_BASE}/signals/init`, { method: 'POST' })
+    if (!response.ok) throw new Error('Failed to initialize signals')
+    const data = await response.json()
+    return data
+  } catch (error) {
+    console.error('Error initializing signals:', error)
+    return null
+  }
+}
+
+export async function updateSignals(symptomSignals, contextSignals) {
+  try {
+    const response = await fetch(`${API_BASE}/signals/`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ symptomSignals, contextSignals })
+    })
+    if (!response.ok) throw new Error('Failed to update signals')
+    const data = await response.json()
+    return data
+  } catch (error) {
+    console.error('Error updating signals:', error)
+    return null
+  }
+}
+
 // English + Hindi + Telugu emergency signals (extensible)
 export const SYMPTOM_SIGNALS = {
   cardiac: [

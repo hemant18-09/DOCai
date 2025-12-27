@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import '../styles/ProviderPortal.css';
 
 // Sidebar Component
@@ -86,7 +86,12 @@ const Sidebar = ({ currentView, onViewChange }) => {
 };
 
 // TopBar Component
-const TopBar = ({ title }) => (
+const TopBar = ({ title }) => {
+  const user = JSON.parse(localStorage.getItem('user') || '{}');
+  const doctorName = user.name || 'Doctor';
+  const specialization = user.specialization || 'Healthcare Provider';
+  
+  return (
   <header className="provider-top-bar">
     <div className="provider-header-title">{title}</div>
     <div className="provider-header-right">
@@ -98,14 +103,24 @@ const TopBar = ({ title }) => (
       </button>
       <div className="provider-user-info">
         <div className="provider-user-details">
-          <div className="provider-user-name">Dr. Sarah Chen</div>
-          <div className="provider-user-role">Primary Care</div>
+          <div className="provider-user-name">{doctorName}</div>
+          <div className="provider-user-role">{specialization}</div>
         </div>
-        <img src="https://i.pravatar.cc/150?img=47" alt="Dr. Sarah Chen" className="provider-user-avatar" />
+        <div className="provider-user-avatar" style={{
+          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          color: 'white',
+          fontWeight: 'bold',
+          fontSize: '16px'
+        }}>
+          {doctorName.split(' ')[1]?.charAt(0) || 'D'}
+        </div>
       </div>
     </div>
   </header>
-);
+)};
 
 // Dashboard View
 const Dashboard = ({ onPatientClick }) => {
@@ -213,15 +228,81 @@ const Appointments = ({ onPatientClick }) => (
 
 // Messages View
 const Messages = () => {
-  const [activeMessage, setActiveMessage] = useState(0);
-  const messages = [
-    { id: 0, sender: 'Simulated Patient', preview: 'Re: Question about new medication side effects...', time: '9:45 AM', mrn: '#882910' },
-    { id: 1, sender: 'Mark Ruffalo', preview: 'Thanks for the refill dr chen.', time: 'Yesterday', mrn: '#654321' },
-  ];
-  const conversation = [
-    { type: 'in', text: "Hello Dr. Chen, I started the new medication yesterday but I'm feeling a bit dizzy this morning. Is this normal?", time: '9:45 AM' },
-    { type: 'out', text: 'Hi there. Mild dizziness can be a common side effect when starting. Please monitor your blood pressure if possible and let me know if it gets worse or persists beyond a few days. We can adjust if needed.', time: '10:05 AM' },
-  ];
+  const [activeConversation, setActiveConversation] = useState(null);
+  const [conversations, setConversations] = useState([]);
+  const [messageInput, setMessageInput] = useState('');
+  const [doctor, setDoctor] = useState(null);
+
+  useEffect(() => {
+    const userData = localStorage.getItem('user');
+    if (userData) {
+      const user = JSON.parse(userData);
+      setDoctor(user);
+      fetchConversations(user.id);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (doctor && activeConversation) {
+      const interval = setInterval(() => {
+        fetchConversations(doctor.id);
+      }, 3000); // Poll every 3 seconds
+      return () => clearInterval(interval);
+    }
+  }, [doctor, activeConversation]);
+
+  const fetchConversations = async (doctorId) => {
+    try {
+      const response = await fetch(`http://localhost:5000/api/messages/doctor/${doctorId}`);
+      const data = await response.json();
+      if (data.success) {
+        setConversations(data.conversations);
+        if (data.conversations.length > 0 && !activeConversation) {
+          setActiveConversation(data.conversations[0]);
+        } else if (activeConversation) {
+          // Update active conversation
+          const updated = data.conversations.find(c => c.patientId === activeConversation.patientId);
+          if (updated) setActiveConversation(updated);
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching conversations:', error);
+    }
+  };
+
+  const handleSendMessage = async () => {
+    if (!messageInput.trim() || !doctor || !activeConversation) return;
+
+    try {
+      const response = await fetch('http://localhost:5000/api/messages/send', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          patientId: activeConversation.patientId,
+          doctorId: doctor.id,
+          patientName: activeConversation.patientName,
+          doctorName: doctor.name,
+          message: messageInput,
+          sender: 'doctor'
+        }),
+      });
+
+      if (response.ok) {
+        setMessageInput('');
+        fetchConversations(doctor.id);
+      }
+    } catch (error) {
+      console.error('Error sending message:', error);
+    }
+  };
+
+  const formatTime = (timestamp) => {
+    const date = new Date(timestamp);
+    return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+  };
+
   return (
     <>
       <h1 className="provider-page-title" style={{ marginBottom: '24px' }}>Messages</h1>
@@ -230,33 +311,91 @@ const Messages = () => {
           <div style={{ padding: '16px 24px', borderBottom: '1px solid var(--border-color)' }}>
             <input type="text" placeholder="Search messages..." style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid var(--border-color)' }} />
           </div>
-          {messages.map((msg) => (
-            <div key={msg.id} className={`provider-msg-preview ${activeMessage === msg.id ? 'active' : ''}`} onClick={() => setActiveMessage(msg.id)}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
-                <div style={{ fontWeight: 600 }}>{msg.sender}</div>
-                <div style={{ fontSize: '12px', color: 'var(--text-soft)' }}>{msg.time}</div>
-              </div>
-              <div style={{ fontSize: '13px', color: 'var(--text-medium)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{msg.preview}</div>
+          {conversations.length === 0 ? (
+            <div style={{ padding: '24px', textAlign: 'center', color: 'var(--text-soft)' }}>
+              No messages yet
             </div>
-          ))}
+          ) : (
+            conversations.map((conv) => (
+              <div
+                key={conv.patientId}
+                className={`provider-msg-preview ${activeConversation?.patientId === conv.patientId ? 'active' : ''}`}
+                onClick={() => setActiveConversation(conv)}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                  <div style={{ fontWeight: 600 }}>{conv.patientName}</div>
+                  <div style={{ fontSize: '12px', color: 'var(--text-soft)' }}>
+                    {conv.lastMessage ? formatTime(conv.lastMessage.timestamp) : ''}
+                  </div>
+                </div>
+                <div style={{ fontSize: '13px', color: 'var(--text-medium)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  {conv.lastMessage ? conv.lastMessage.message.substring(0, 50) + '...' : 'No messages'}
+                </div>
+                {conv.unreadCount > 0 && (
+                  <span style={{
+                    position: 'absolute',
+                    top: '12px',
+                    right: '12px',
+                    background: 'var(--accent-red)',
+                    color: 'white',
+                    fontSize: '11px',
+                    fontWeight: 'bold',
+                    borderRadius: '10px',
+                    padding: '2px 6px',
+                    minWidth: '18px',
+                    textAlign: 'center'
+                  }}>
+                    {conv.unreadCount}
+                  </span>
+                )}
+              </div>
+            ))
+          )}
         </div>
         <div className="provider-msg-content">
-          <div className="provider-msg-header">
-            <div style={{ fontWeight: 700, fontSize: '18px' }}>{messages[activeMessage].sender}</div>
-            <div style={{ fontSize: '13px', color: 'var(--text-soft)' }}>MRN {messages[activeMessage].mrn}</div>
-          </div>
-          <div className="provider-msg-body">
-            {conversation.map((msg, idx) => (
-              <div key={idx} className={`provider-msg-bubble provider-msg-${msg.type}`}>
-                {msg.text}
-                <div style={{ textAlign: 'right', fontSize: '11px', color: msg.type === 'in' ? 'var(--text-soft)' : 'rgba(255,255,255,0.8)', marginTop: '8px' }}>{msg.time}</div>
+          {activeConversation ? (
+            <>
+              <div className="provider-msg-header">
+                <div style={{ fontWeight: 700, fontSize: '18px' }}>{activeConversation.patientName}</div>
+                <div style={{ fontSize: '13px', color: 'var(--text-soft)' }}>Patient ID: {activeConversation.patientId}</div>
               </div>
-            ))}
-          </div>
-          <div style={{ padding: '16px 24px', borderTop: '1px solid var(--border-color)', background: 'var(--bg-white)', display: 'flex', gap: '12px' }}>
-            <input type="text" placeholder="Type a reply..." style={{ flex: 1, padding: '12px', borderRadius: '8px', border: '1px solid var(--border-color)' }} />
-            <button className="btn btn-primary">Send</button>
-          </div>
+              <div className="provider-msg-body">
+                {activeConversation.messages.length === 0 ? (
+                  <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-soft)' }}>
+                    No messages in this conversation
+                  </div>
+                ) : (
+                  activeConversation.messages.map((msg) => (
+                    <div key={msg.id} className={`provider-msg-bubble provider-msg-${msg.sender === 'patient' ? 'in' : 'out'}`}>
+                      {msg.message}
+                      <div style={{ textAlign: 'right', fontSize: '11px', color: msg.sender === 'patient' ? 'var(--text-soft)' : 'rgba(255,255,255,0.8)', marginTop: '8px' }}>
+                        {formatTime(msg.timestamp)}
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+              <div style={{ padding: '16px 24px', borderTop: '1px solid var(--border-color)', background: 'var(--bg-white)', display: 'flex', gap: '12px' }}>
+                <input
+                  type="text"
+                  placeholder="Type a reply..."
+                  value={messageInput}
+                  onChange={(e) => setMessageInput(e.target.value)}
+                  onKeyPress={(e) => {
+                    if (e.key === 'Enter') {
+                      handleSendMessage();
+                    }
+                  }}
+                  style={{ flex: 1, padding: '12px', borderRadius: '8px', border: '1px solid var(--border-color)' }}
+                />
+                <button className="btn btn-primary" onClick={handleSendMessage}>Send</button>
+              </div>
+            </>
+          ) : (
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: 'var(--text-soft)' }}>
+              Select a conversation to view messages
+            </div>
+          )}
         </div>
       </div>
     </>
