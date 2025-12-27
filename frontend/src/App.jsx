@@ -16,6 +16,9 @@ import SignupView from './views/SignupView.jsx'
 import ChatView from './views/ChatView.jsx'
 import ProviderPortalView from './views/ProviderPortalView.jsx'
 
+// Check if Firebase is configured
+const isFirebaseConfigured = !!auth
+
 function ViewSection({ id, name, currentView, children }) {
   const className =
     'view-section' + (currentView === name ? ' active-view' : '')
@@ -119,6 +122,31 @@ function App() {
 
   return (
     <>
+      {!isFirebaseConfigured && (
+        <div style={{
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: 'center',
+          alignItems: 'center',
+          height: '100vh',
+          backgroundColor: '#f5f5f5',
+          padding: '20px',
+          textAlign: 'center'
+        }}>
+          <h1 style={{ fontSize: '28px', marginBottom: '10px' }}>⚙️ Configuration Required</h1>
+          <p style={{ fontSize: '16px', color: '#666', maxWidth: '500px', lineHeight: '1.6' }}>
+            Firebase environment variables are not configured. 
+            <br/><br/>
+            <strong>Local Development:</strong> Create <code>frontend/.env.local</code> with <code>VITE_FIREBASE_*</code> values
+            <br/><br/>
+            <strong>Vercel/Render Deployment:</strong> Add environment variables in your dashboard (see .env.example)
+            <br/><br/>
+            <a href="https://github.com/hemant18-09/DOCAI" style={{ color: '#0070f3', textDecoration: 'none' }}>Docs</a>
+          </p>
+        </div>
+      )}
+      
+      {isFirebaseConfigured && (
       <MessageProvider>
       {showIntro && (
         <div className={`intro-screen ${animationStep >= 3 ? 'fade-out' : ''}`}>
@@ -384,6 +412,7 @@ function App() {
         </nav>
       )}
       </MessageProvider>
+      )}
     </>
   )
 }
