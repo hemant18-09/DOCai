@@ -1,0 +1,9 @@
+services:
+  - type: web
+    name: docai-backend
+    runtime: python
+    plan: free
+    branch: main
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn main:app -k uvicorn.workers.UvicornWorker --bind 0.0.0.0:$PORT --workers 4
